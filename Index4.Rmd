@@ -123,7 +123,6 @@ d4=ind4(ordered.gpcm)
 d5=ind4(crossed.pcm) 
 d6=ind4(all.a2)
 d7=ind4(all.c2)
-plot(a_i[-1],d1)
 ```
 
 
@@ -187,13 +186,6 @@ d8=ind41(ordered.grm.const)
 d9=ind41(ordered.grm.a.const)
 d10=ind41(ordered.grm4b[-100])
 d11=ind41(ordered.grm4a)
-
-plot(bs[-c(1, 100), 2], d10, ylim=c(0,1))
-plot(bs[-c(1), 2], d8, ylim=c(0,1))
-
-plot(a_i[-1], d11, ylim=c(0,1))
-plot(a_i[-1], d9, ylim=c(0,1))
-
 ```
 
 
