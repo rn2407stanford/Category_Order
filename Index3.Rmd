@@ -1,0 +1,176 @@
+
+
+```{r}
+n_i=100
+th=sort(rnorm(1000))
+resp_th= function(list){
+  df=data.frame(th)
+  for (i in 1:length(list)){
+    df[[i+1]]<-list[[i]][, ncol(list[[i]])]
+  }
+  colnames(df)<-c("th", paste("Item", 1:(length(list)),sep='') )
+  df
+}
+
+a_i<-sort(c(runif(n_i-6, min=0.1, max=3), 0, 0.14, 0.5, 1, 1.5, 3) )
+bs<-data.frame(b1=0, b2=sort(c(runif(n_i-5, min=0.1, max=3), 0, 0.1, 1.4, 2, 3 )) )
+b_2<-bs[,2]
+bs.c<-data.frame(b1=0, b2=sort(c(runif(n_i-3, min=-3, max=3), -3, 0,3 )) ) 
+a=1
+all.a2.val<-data.frame(a1=0, a2=sort( c(runif(n_i-3, min=-3, max=3), -2, 1, 3 )), a3=2 )
+all.c2.val<-data.frame(c1=0, c2=sort(c( runif(n_i-3, min=-3, max=3), -2, 1, 3 )), c3=2 )
+```
+
+
+```{r}
+ordered.grm<-readRDS("C:/Users/Roza/Desktop/Order.12.15.23/Data/ordered.grm.Vary_b,a=1.RData")
+ordered.grm.a<-readRDS("C:/Users/Roza/Desktop/Order.12.15.23/Data/ordered.grm.Vary_a.RData")
+
+ordered.gpcm<-readRDS("C:/Users/Roza/Desktop/Order.12.15.23/Data/ordered.gpcm.Vary_b,a=1.RData")
+ordered.gpcm.a<-readRDS("C:/Users/Roza/Desktop/Order.12.15.23/Data/ordered.gpcm.Vary_a.RData")
+crossed.pcm<-readRDS("C:/Users/Roza/Desktop/Order.12.15.23/Data/crossed.pcm.RData")
+
+all.a2<-readRDS("C:/Users/Roza/Desktop/Order.12.15.23/Data/all.a2.RData")
+all.c2<-readRDS("C:/Users/Roza/Desktop/Order.12.15.23/Data/all.c2.RData")
+
+ordered.grm.const<-readRDS("C:/Users/Roza/Desktop/Order.12.15.23/Data/ordered.grm.const.RData")
+ordered.grm.a.const<-readRDS("C:/Users/Roza/Desktop/Order.12.15.23/Data/ordered.grm.a.const.RData")
+
+ordered.grm4b<-readRDS("C:/Users/Roza/Desktop/Order.12.15.23/Data/ordered.grm4b.RData")
+ordered.grm4a<-readRDS("C:/Users/Roza/Desktop/Order.12.15.23/Data/ordered.grm4a.RData")
+```
+
+
+```{r}
+ord<-resp_th(ordered.grm.a)
+df1.<-data.frame()
+for ( i in 3:length(ord)){
+  ordered_item<-c(rep(0, table(ord[,i])[1] ), rep(1, table(ord[,i])[2]), rep(2, table(ord[,i])[3]))
+  df1<-1-mean(abs(ord[,i]-ordered_item) )
+  df1.<-rbind(df1., df1)
+}
+```
+
+
+```{r}
+ord<-resp_th(ordered.grm)
+df2<-data.frame()
+for ( i in 3:length(ord)){
+  ordered_item<-c(rep(0, table(ord[,i])[1] ), rep(1, table(ord[,i])[2]), rep(2, table(ord[,i])[3]))
+  df1<-1-mean(abs(ord[,i]-ordered_item) )
+  df2<-rbind(df2, df1)
+}
+```
+
+
+```{r}
+ord<-resp_th(ordered.gpcm.a)
+df3<-data.frame()
+for ( i in 3:length(ord)){
+  ordered_item<-c(rep(0, table(ord[,i])[1] ), rep(1, table(ord[,i])[2]), rep(2, table(ord[,i])[3]))
+  df1<-1-mean(abs(ord[,i]-ordered_item) )
+  df3<-rbind(df3, df1)
+}
+```
+
+
+```{r}
+ord<-resp_th(ordered.gpcm)
+df4<-data.frame()
+for ( i in 3:length(ord)){
+  ordered_item<-c(rep(0, table(ord[,i])[1] ), rep(1, table(ord[,i])[2]), rep(2, table(ord[,i])[3]))
+  df1<-mean(abs(ord[,i]-ordered_item) )
+  df4<-rbind(df4, df1)
+}
+```
+
+
+```{r}
+ord<-resp_th(crossed.pcm)
+df5<-data.frame()
+for ( i in 2:length(ord)){
+  ordered_item<-c(rep(0, table(ord[,i])[1] ), rep(1, table(ord[,i])[2]), rep(2, table(ord[,i])[3]))
+  df1<-1-mean(abs(ord[,i]-ordered_item) )
+  df5<-rbind(df5, df1)
+}
+```
+
+
+```{r}
+ord<-resp_th(all.a2)
+df6<-data.frame()
+for ( i in 2:length(ord)){
+  ordered_item<-c(rep(0, table(ord[,i])[1] ), rep(1, table(ord[,i])[2]), rep(2, table(ord[,i])[3]))
+  df1<-1-mean(abs(ord[,i]-ordered_item) )
+  df6<-rbind(df6, df1)
+}
+```
+
+
+```{r}
+ord<-resp_th(all.c2)
+df7<-data.frame()
+for ( i in 2:length(ord)){
+  ordered_item<-c(rep(0, table(ord[,i])[1] ), rep(1, table(ord[,i])[2]), rep(2, table(ord[,i])[3]))
+  df1<-1-mean(abs(ord[,i]-ordered_item) )
+  df7<-rbind(df7, df1)
+}
+```
+
+
+```{r}
+ord<-resp_th(ordered.grm.const)
+df8<-data.frame()
+for ( i in 3:length(ord)){
+  ordered_item<-c(rep(0, table(ord[,i])[1] ), rep(1, table(ord[,i])[2]), rep(2, table(ord[,i])[3]), rep(3, table(ord[,i])[4]))
+  df1<-1-mean(abs(ord[,i]-ordered_item) )
+  df8<-rbind(df8, df1)
+}
+```
+
+
+```{r}
+ord<-resp_th(ordered.grm.a.const)
+df9<-data.frame()
+for ( i in 3:length(ord)){
+  ordered_item<-c(rep(0, table(ord[,i])[1] ), rep(1, table(ord[,i])[2]), rep(2, table(ord[,i])[3]), rep(3, table(ord[,i])[4]))
+  df1<-1-mean(abs(ord[,i]-ordered_item) )
+  df9<-rbind(df9, df1)
+}
+```
+
+
+```{r}
+ord<-resp_th(ordered.grm4b)
+df10<-data.frame()
+for ( i in 3:(length(ord)-1)){
+  ordered_item<-c(rep(0, table(ord[,i])[1] ), rep(1, table(ord[,i])[2]), rep(2, table(ord[,i])[3]), rep(3, table(ord[,i])[4]))
+  df1<-1-mean(abs(ord[,i]-ordered_item) )
+  df10<-rbind(df10, df1)
+}
+```
+
+
+```{r}
+ord<-resp_th(ordered.grm4a)
+df11<-data.frame()
+for ( i in 3:length(ord)){
+  ordered_item<-c(rep(0, table(ord[,i])[1] ), rep(1, table(ord[,i])[2]), rep(2, table(ord[,i])[3]), rep(3, table(ord[,i])[4]))
+  df1<-1-mean(abs(ord[,i]-ordered_item) )
+  df11<-rbind(df11, df1)
+}
+```
+
+
+```{r}
+measure6=list(df1., df2, df3, df4, df5, df6, df7, df8, df9, df10, df11)
+saveRDS(measure6, file="C:/Users/Roza/Desktop/Order.12.15.23/Data/measure6.RData")
+```
+
+
+
+
+
+
+
+

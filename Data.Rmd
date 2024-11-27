@@ -1,0 +1,425 @@
+
+
+```{r}
+set.seed(1)
+library(ggplot2)
+library(ggpubr)
+library(gridExtra)
+library(mirt)
+
+th=sort(rnorm(1000))
+n_i=100 # Number of Items
+bs<-data.frame(b1=0, b2=sort(c(runif(n_i-5, min=0.1, max=3), 0, 0.1, 1.4, 2, 3 )) )
+bs.c<-data.frame(b1=0, b2=sort(c(runif(n_i-3, min=-3, max=3), -3, 0,3 )) ) 
+a_i<-sort(c(runif(n_i-6, min=0.1, max=3), 0, 0.14, 0.5, 1, 1.5, 3) )
+a=1
+
+### Simulate GRM
+
+simgrm<-function(th,b,a) {
+  invlogit<-function(z) 1/(1+exp(-z))
+  K<-length(b)+1
+  pr<-list()
+  for (i in 1:(K-1)) pr[[i]]<-invlogit(a*(th-b[i]))
+  pr<-do.call("cbind",pr)
+  pr<-cbind(1,pr,0)
+  p<-list()
+  for (i in 1:K) p[[i]]<-pr[,i]-pr[,i+1]
+  p<-do.call("cbind",p)
+  colnames(p)<-paste("truep",0:(ncol(p)-1),sep='')
+  resp<-numeric()
+  for (i in 1:length(th)) resp[i]<-which(rmultinom(1,1,p[i,])[,1]>0)-1
+  id=1:length(th)
+  data.frame(cbind(id, th.true=th, p, resp))
+}
+
+### Simulate NRM
+simnrm<-function(th, c, a) {
+  K<-length(a)
+  z<-list()
+  for (k in 1:K) {
+    kern<-a[k]*th+c[k]
+    z[[k]]<-exp(kern)
+  }
+  z<-do.call("cbind", z)
+  den<-rowSums(z)
+  p<-z/den
+  colnames(p)<-paste("truep",0:(ncol(p)-1), sep='')
+  resp<-numeric()
+  for (i in 1:length(th)) resp[i]<-which(rmultinom(1, 1, p[i,])[,1]>0)-1
+  id=1:length(th)
+  data.frame(cbind(id, th.true=th, p, resp))
+}
+
+### Simulate GPCM
+simpcm<-function(th,b,a) {
+  K<-length(b)+1
+  psi<-list()
+  psi[[1]]<-rep(1,length(th))
+  for (k in 1:(K-1)) {
+    kern<-k*th-sum(b[1:k])
+    psi[[k+1]]<-exp(a*kern)
+  }
+  psi<-do.call("cbind",psi)
+  den<-rowSums(psi)
+  p<-psi/den
+  colnames(p)<-paste("truep",0:(ncol(p)-1),sep='')
+  resp<-numeric()
+  for (i in 1:length(th)) resp[i]<-which(rmultinom(1,1,p[i,])[,1]>0)-1
+  id=1:length(th)
+  data.frame(cbind(id, th.true=th, p, resp))
+}
+
+# Simulate three GRM one constant
+
+simgrm.const<-function(th,b,a) {
+  invlogit<-function(z) 1/(1+exp(-z))
+  K<-length(b)+1
+  pr<-list()
+  for (i in 1:(K-1)) pr[[i]]<-invlogit(a*(th-b[i]))
+  pr<-do.call("cbind",pr)
+  pr<-cbind(1,pr,0)
+  p<-list()
+  for (i in 1:K) p[[i]]<-(pr[,i]-pr[,i+1])*0.75
+  p[[K+1]]=0.25
+  p<-do.call("cbind",p)
+  colnames(p)<-paste("truep",0:(ncol(p)-1),sep='')
+  resp<-numeric()
+  rowSums(p)
+  for (i in 1:length(th)) resp[i]<-which(rmultinom(1,1,p[i,])[,1]>0)-1
+  id=1:length(th)
+  data.frame(cbind(id, th.true=th, p, resp))
+}
+
+# Given list of item dataframes separate item responses
+resp_th= function(list){
+  df=data.frame(th)
+  for (i in 1:length(list)){
+    df[[i+1]]<-list[[i]][, ncol(list[[i]])]
+  }
+  colnames(df)<-c("th", paste("Item", 1:(length(list)),sep='') )
+  df
+}
+```
+
+
+# GRM
+```{r}
+# Varying b
+ordered.grm=list()
+for (i in 1:n_i){
+  b=c(bs[i,1], bs[i,2]) 
+  df.grm=list(simgrm(th, b=b, a=a)) 
+  ordered.grm[i]=df.grm 
+}
+
+# Varying a
+ordered.grm.a=list()
+for (i in 1:n_i){
+  df.grm.a=list(simgrm(th, b=c(0, 1), a=a_i[i]))
+  ordered.grm.a[i]=df.grm.a
+}
+```
+
+
+# Three GRM one constant
+```{r}
+# Varying b
+ordered.grm.const=list()
+for (i in 1:n_i){
+  b=c(bs[i,1], bs[i,2]) 
+  df.grm=list(simgrm.const(th, b=b, a=1))
+  ordered.grm.const[i]=df.grm 
+}
+
+# Varying a
+ordered.grm.a.const=list()
+for (i in 1:n_i){
+  df.grm.a=list(simgrm.const(th, b=c(0, 1), a=a_i[i]))
+  ordered.grm.a.const[i]=df.grm.a
+}
+```
+
+
+# GRM four categories
+```{r}
+# Varying b
+ordered.grm4b=list()
+for (i in 1:n_i){
+  b=c(0, bs[i,2], 3) 
+  df.grm=list(simgrm(th, b=b, a=a)) 
+  ordered.grm4b[i]=df.grm 
+}
+
+# Varying a
+ordered.grm4a=list()
+for (i in 1:n_i){
+  b=c(0, 1, 3)
+  df.grm=list(simgrm(th, b=b, a=a_i[i]))
+  ordered.grm4a[i]=df.grm 
+}
+```
+
+
+# GPCM
+```{r}
+# Varying b
+ordered.gpcm=list()
+for (i in 1:n_i){
+  df.gpcm=list(simpcm(th, b=c(bs[i,1], bs[i,2]), a=a))
+  ordered.gpcm[i]=df.gpcm
+}
+
+# GPCM Varying a
+ordered.gpcm.a=list()
+for (i in 1:n_i){
+  df.gpcm.a=list(simpcm(th, b=c(0, 1), a=a_i[i]))
+  ordered.gpcm.a[i]=df.gpcm.a
+}
+```
+
+
+# GPCM Crossed Loadings
+```{r}
+crossed.pcm=list()
+for (i in 1:n_i){
+  df.gpcm=list(simpcm(th, b=c(bs.c[i,1], bs.c[i,2]), a=1))
+  crossed.pcm[i]=df.gpcm
+}
+```
+
+
+# NRM
+```{r}
+# a2 Parameter Constraints
+constraint2<-function(n_i){
+  k=3
+  y=data.frame()
+  library(dplyr)
+  for (i in 1:n_i){
+    s<-rep(c(rep(1/k, k-1) , ((1/k)-1) ), k-1)
+    T_mat=matrix(s, ncol=k-1, byrow=TRUE)
+    random_n<-matrix(c(runif(1, min=0, max=1.5), runif(1, min=1.5, max=3)), ncol=1)
+    m=sort(T_mat%*%random_n)
+    df<-data.frame(a1=m[1], a2=m[2], a3=m[3])
+    y<-rbind(y, df)
+  }
+  y<-y %>% arrange(a1)
+}
+as<-constraint2(n_i)
+c=c(-1, 0, 1)
+
+# a2 varies
+c<-c(0, 1, 2 )
+all.a2.val<-data.frame(a1=0, a2=sort( c(runif(n_i-3, min=-3, max=3), -2, 1, 3 )), a3=2 )
+all.a2=list()
+for (i in 1:n_i){
+  df.nrm1=list(simnrm(th, c=c, a=as.numeric(all.a2.val[i,])))
+  all.a2[i]=df.nrm1   
+}
+
+# c2 varies
+as<-c(0, 1, 2)
+all.c2.val<-data.frame(c1=0, c2=sort(c( runif(n_i-3, min=-3, max=3), -2, 1, 3 )), c3=2 )
+
+all.c2=list()
+for (i in 1:n_i){
+  df.nrm1=list(simnrm(th, c=as.numeric(all.c2.val[i,]), a=as ) )
+  all.c2[i]=df.nrm1 
+}
+```
+
+
+```{r}
+saveRDS(ordered.grm, file="ordered.grm.Vary_b,a=1.RData")
+saveRDS(ordered.gpcm, file="ordered.gpcm.Vary_b,a=1.RData")
+saveRDS(crossed.pcm, file="crossed.pcm.RData")
+
+saveRDS(ordered.grm.a, file="ordered.grm.Vary_a.RData")
+saveRDS(ordered.gpcm.a, file="ordered.gpcm.Vary_a.RData")
+
+saveRDS(ordered.grm.const, file="ordered.grm.const.RData")
+saveRDS(ordered.grm.a.const, file="ordered.grm.a.const.RData")
+
+saveRDS(ordered.grm4a, file="ordered.grm4a.RData")
+saveRDS(ordered.grm4b, file="ordered.grm4b.RData")
+
+saveRDS(all.a2, file="all.a2.RData")
+saveRDS(all.c2, file="all.c2.RData")
+```
+
+
+```{r}
+atest=c(0, 0.5, 1.5)
+ordered.grm.atest=list()
+for (i in 1:length(atest)){
+  df.grm.a=list(simgrm(th, b=c(0, 1), a=atest[i]))
+  ordered.grm.atest[i]=df.grm.a
+}
+
+ordered.gpcm.atest=list()
+for (i in 1:length(atest)){
+  df.gpcm.a=list(simpcm(th, b=c(0, 1), a=atest[i]))
+  ordered.gpcm.atest[i]=df.gpcm.a
+}
+test=c(ordered.grm.atest, ordered.gpcm.atest)
+```
+
+
+```{r}
+list.true=test
+legend_colors <- c("P0" = "red", "P1" = "orange", "P2" = "green")
+
+p1=ggplot() + geom_line(data=list.true[[1]], mapping=aes(x=th.true, y=truep0), col="red") + geom_line(data=list.true[[1]], mapping=aes(x=th.true, y=truep1), col="orange" ) + geom_line(data=list.true[[1]], mapping=aes(x=th.true, y=truep2), col="green") + theme_classic() + scale_color_manual(values = legend_colors) +ylab(expression(paste("GRM", sep="  ", P(theta))))+xlab(expression(theta))+ annotate("text", -2, 0.9, label = " a==0", parse = TRUE, size=4) +ylim(0,1) +xlim(-3, 4)
+
+p2=ggplot() + geom_line(data=list.true[[2]], mapping=aes(x=th.true, y=truep0), col="red") + geom_line(data=list.true[[2]], mapping=aes(x=th.true, y=truep1), col="orange" ) + geom_line(data=list.true[[2]], mapping=aes(x=th.true, y=truep2), col="green") + theme_classic()  +scale_color_manual(values = legend_colors)+ylab(expression(paste("GRM", sep="  ", P(theta))))+xlab(expression(theta))+ annotate("text", -2, 0.9, label = " a==0.5", parse = TRUE, size=4)+ylim(0,1)+xlim(-3, 5)
+
+p3=ggplot() + geom_line(data=list.true[[3]], mapping=aes(x=th.true, y=truep0, col="P0")) + geom_line(data=list.true[[3]], mapping=aes(x=th.true, y=truep1, col="P1") ) + geom_line(data=list.true[[3]], mapping=aes(x=th.true, y=truep2, col="P2")) + theme_classic()  +scale_color_manual(values = legend_colors)+ ylab(expression(paste("GRM", sep="  ", P(theta))))+xlab(expression(theta))+ annotate("text", -2, 0.9, label = " a==1.5", parse = TRUE, size=4)+ylim(0,1)+xlim(-3, 5)
+
+p4=ggplot() + geom_line(data=list.true[[4]], mapping=aes(x=th.true, y=truep0, col="P0")) + geom_line(data=list.true[[4]], mapping=aes(x=th.true, y=truep1, col="P1") ) + geom_line(data=list.true[[4]], mapping=aes(x=th.true, y=truep2, col="P2")) + theme_classic()  +scale_color_manual(values = legend_colors)+ylab(expression(paste("GPCM", sep="  ", P(theta))))+xlab(expression(theta))+ annotate("text", -2, 0.9, label = " a==0", parse = TRUE, size=4)+ylim(0,1)+xlim(-3, 5)
+
+p5=ggplot() + geom_line(data=list.true[[5]], mapping=aes(x=th.true, y=truep0, col="P0")) + geom_line(data=list.true[[5]], mapping=aes(x=th.true, y=truep1, col="P1") ) + geom_line(data=list.true[[5]], mapping=aes(x=th.true, y=truep2, col="P2")) + theme_classic() +scale_color_manual(values = legend_colors)+ylab(expression(paste("GPCM", sep="  ", P(theta))))+xlab(expression(theta))+ annotate("text", -2, 0.9, label = " a==0.5", parse = TRUE, size=4)+ylim(0,1)+xlim(-3, 5)
+
+p6=ggplot() + geom_line(data=list.true[[6]], mapping=aes(x=th.true, y=truep0, col="P0")) + geom_line(data=list.true[[6]], mapping=aes(x=th.true, y=truep1, col="P1") ) + geom_line(data=list.true[[6]], mapping=aes(x=th.true, y=truep2, col="P2")) + theme_classic()  +scale_color_manual(values = legend_colors)+ylab(expression(paste("GPCM", sep="  ", P(theta))))+xlab(expression(theta)) + annotate("text", -2, 0.9, label = " a==1.5", parse = TRUE, size=4)+ylim(0,1)+xlim(-3, 5)
+
+myplot=ggarrange(p1, p2, p3, p4, p5, p6, ncol=3, nrow=3,  common.legend = TRUE, legend="top"); myplot
+```
+
+```{r}
+one=simgrm(th, b=c(0, 0.1), a=1 ); two=simgrm(th, b=c(0, 1.4), a=1 ); three=simgrm(th, b=c(0, 3), a=1 ); four=simpcm(th, b=c(0, -3), a=1 ); five=simpcm(th, b=c(0, 0), a=1 ); six=simpcm(th, b=c(0, 3), a=1 )
+test=list(one, two, three, four, five, six)
+```
+
+
+```{r}
+list.true=test
+legend_colors <- c("P0" = "red", "P1" = "orange", "P2" = "green")
+
+p1=ggplot() + geom_line(data=list.true[[1]], mapping=aes(x=th.true, y=truep0, col="P0")) + geom_line(data=list.true[[1]], mapping=aes(x=th.true, y=truep1, col="P1") ) + geom_line(data=list.true[[1]], mapping=aes(x=th.true, y=truep2, col="P2")) + theme_classic() +scale_color_manual(values = legend_colors) +ylab(expression(paste("GRM", sep="  ", P(theta))))+xlab(expression(theta))+ annotate("text", -2, 0.9, label = " b[2]==0.1", parse = TRUE, size=4) +ylim(0,1) +xlim(-3, 3.6)
+
+p2=ggplot() + geom_line(data=list.true[[2]], mapping=aes(x=th.true, y=truep0, col="P0")) + geom_line(data=list.true[[2]], mapping=aes(x=th.true, y=truep1, col="P1") ) + geom_line(data=list.true[[2]], mapping=aes(x=th.true, y=truep2, col="P2")) + theme_classic()  +scale_color_manual(values = legend_colors)+ylab(expression(paste("GRM", sep="  ", P(theta))))+xlab(expression(theta))+ annotate("text", -2, 0.9, label = " b[2]==1.4", parse = TRUE, size=4)+ylim(0,1)+xlim(-3, 3.6)
+
+p3=ggplot() + geom_line(data=list.true[[3]], mapping=aes(x=th.true, y=truep0, col="P0")) + geom_line(data=list.true[[3]], mapping=aes(x=th.true, y=truep1, col="P1") ) + geom_line(data=list.true[[3]], mapping=aes(x=th.true, y=truep2, col="P2")) + theme_classic()  +scale_color_manual(values = legend_colors)+ ylab(expression(paste("GRM", sep="  ", P(theta))))+xlab(expression(theta))+ annotate("text", -2, 0.9, label = " b[2]==3", parse = TRUE, size=4)+ylim(0,1)+xlim(-3, 3.6)
+
+p4=ggplot() + geom_line(data=list.true[[4]], mapping=aes(x=th.true, y=truep0, col="P0")) + geom_line(data=list.true[[4]], mapping=aes(x=th.true, y=truep1, col="P1") ) + geom_line(data=list.true[[4]], mapping=aes(x=th.true, y=truep2, col="P2")) + theme_classic()  +scale_color_manual(values = legend_colors)+ylab(expression(paste("GPCM", sep="  ", P(theta))))+xlab(expression(theta))+ annotate("text", -2, 0.9, label = " b[2]==-3", parse = TRUE, size=4)+ylim(0,1)+xlim(-3, 3.6)
+
+p5=ggplot() + geom_line(data=list.true[[5]], mapping=aes(x=th.true, y=truep0, col="P0")) + geom_line(data=list.true[[5]], mapping=aes(x=th.true, y=truep1, col="P1") ) + geom_line(data=list.true[[5]], mapping=aes(x=th.true, y=truep2, col="P2")) + theme_classic() +scale_color_manual(values = legend_colors)+ylab(expression(paste("GPCM", sep="  ", P(theta))))+xlab(expression(theta))+ annotate("text", -2, 0.9, label = " b[2]==0", parse = TRUE, size=4)+ylim(0,1)+xlim(-3, 3.6)
+
+p6=ggplot() + geom_line(data=list.true[[6]], mapping=aes(x=th.true, y=truep0, col="P0")) + geom_line(data=list.true[[6]], mapping=aes(x=th.true, y=truep1, col="P1") ) + geom_line(data=list.true[[6]], mapping=aes(x=th.true, y=truep2, col="P2")) + theme_classic()  +scale_color_manual(values = legend_colors)+ylab(expression(paste("GPCM", sep="  ", P(theta))))+xlab(expression(theta)) + annotate("text", -2, 0.9, label = " b[2]==3", parse = TRUE, size=4)+ylim(0,1)+xlim(-3, 3.6)
+
+myplot=ggarrange(p1, p2, p3, p4, p5, p6, ncol=3, nrow=3,  common.legend = TRUE, legend="top"); myplot
+```
+
+```{r}
+atest=c(-2, 1, 3)
+
+ordered.nrm.atest1=list()
+for (i in 1:length(atest)){
+  df.grm.a=list(simnrm(th, c=c(0,1,2), a=c(0, atest[i], 2 )))
+  ordered.nrm.atest1[i]=df.grm.a
+}
+
+ordered.nrm.atest2=list()
+for (i in 1:length(atest)){
+  df.gpcm.a=list(simnrm(th, c=c(0, atest[i], 2) , a=c(0,1,2)))
+  ordered.nrm.atest2[i]=df.gpcm.a
+}
+test=c(ordered.nrm.atest1, ordered.nrm.atest2)
+```
+
+
+```{r}
+list.true=test
+legend_colors <- c("P0" = "red", "P1" = "orange", "P2" = "green")
+
+p1=ggplot() + geom_line(data=list.true[[1]], mapping=aes(x=th.true, y=truep0, col="P0")) + geom_line(data=list.true[[1]], mapping=aes(x=th.true, y=truep1, col="P1") ) + geom_line(data=list.true[[1]], mapping=aes(x=th.true, y=truep2, col="P2")) + theme_classic() +scale_color_manual(values = legend_colors) +ylab(expression(paste( P(theta))))+xlab(expression(theta))+ annotate("text", -2, 0.9, label = " a[2]==-2", parse = TRUE, size=4) +ylim(0,1) +xlim(-3, 3.6)
+
+p2=ggplot() + geom_line(data=list.true[[2]], mapping=aes(x=th.true, y=truep0, col="P0")) + geom_line(data=list.true[[2]], mapping=aes(x=th.true, y=truep1, col="P1") ) + geom_line(data=list.true[[2]], mapping=aes(x=th.true, y=truep2, col="P2")) + theme_classic()  +scale_color_manual(values = legend_colors)+ylab(expression(paste( P(theta))))+xlab(expression(theta))+ annotate("text", -2, 0.9, label = " a[2]==1", parse = TRUE, size=4)+ylim(0,1)+xlim(-3, 3.6)
+
+p3=ggplot() + geom_line(data=list.true[[3]], mapping=aes(x=th.true, y=truep0, col="P0")) + geom_line(data=list.true[[3]], mapping=aes(x=th.true, y=truep1, col="P1") ) + geom_line(data=list.true[[3]], mapping=aes(x=th.true, y=truep2, col="P2")) + theme_classic()  +scale_color_manual(values = legend_colors)+ ylab(expression(paste( P(theta))))+xlab(expression(theta))+ annotate("text", -2, 0.9, label = " a[2]==3", parse = TRUE, size=4)+ylim(0,1)+xlim(-3, 3.6)
+
+p4=ggplot() + geom_line(data=list.true[[4]], mapping=aes(x=th.true, y=truep0, col="P0")) + geom_line(data=list.true[[4]], mapping=aes(x=th.true, y=truep1, col="P1") ) + geom_line(data=list.true[[4]], mapping=aes(x=th.true, y=truep2, col="P2")) + theme_classic()  +scale_color_manual(values = legend_colors)+ylab(expression(paste( P(theta))))+xlab(expression(theta))+ annotate("text", -2, 0.9, label = " c[2]==-2", parse = TRUE, size=4)+ylim(0,1)+xlim(-3, 3.6)
+
+p5=ggplot() + geom_line(data=list.true[[5]], mapping=aes(x=th.true, y=truep0, col="P0")) + geom_line(data=list.true[[5]], mapping=aes(x=th.true, y=truep1, col="P1") ) + geom_line(data=list.true[[5]], mapping=aes(x=th.true, y=truep2, col="P2")) + theme_classic() +scale_color_manual(values = legend_colors)+ylab(expression(paste( P(theta))))+xlab(expression(theta))+ annotate("text", -2, 0.9, label = " c[2]==1", parse = TRUE, size=4)+ylim(0,1)+xlim(-3, 3.6)
+
+p6=ggplot() + geom_line(data=list.true[[6]], mapping=aes(x=th.true, y=truep0, col="P0")) + geom_line(data=list.true[[6]], mapping=aes(x=th.true, y=truep1, col="P1") ) + geom_line(data=list.true[[6]], mapping=aes(x=th.true, y=truep2, col="P2")) + theme_classic()  +scale_color_manual(values = legend_colors)+ylab(expression(paste(P(theta))))+xlab(expression(theta)) + annotate("text", -2, 0.9, label = " c[2]==3", parse = TRUE, size=4)+ylim(0,1)+xlim(-3, 3.6)
+
+myplot=ggarrange(p1, p2, p3, p4, p5, p6, ncol=3, nrow=3,  common.legend = TRUE, legend="top"); myplot
+
+```
+
+```{r}
+est.fun.nom<-function(resp){
+  l2=list()
+  m <- mirt(resp, 1, itemtype = "nominal") # c(rep("graded", ncol(resp))))
+  th<-fscores(m)
+  colnames(th)="th"
+  for (i in 1:ncol(resp)){
+    item<-extract.item(m, i)
+    pr<-probtrace(item, th)
+    id=1:nrow(resp)
+    df=list(cbind(id, th=th, pr, resp[i]))
+    l2[i]=df
+  }
+  l2
+}
+
+resp<-resp_th(ordered.grm.a.const)
+list.est=est.fun.nom(resp[,-1])
+```
+
+```{r}
+one=simgrm.const(th,b=c(0,1),a=0.14); two=simgrm.const(th,b=c(0, 1),a=1); three=simgrm.const(th,b=c(0,1),a=3); four=simgrm.const(th,b=c(0, 0.14),a=1); five=simgrm.const(th,b=c(0,2),a=1); six=simgrm.const(th,b=c(0,3),a=1)
+
+test=list(one, two, three, four, five, six)
+```
+
+
+```{r}
+list.true=test
+legend_colors <- c("P0" = "red", "P1" = "orange", "P2" = "green", "P3" = "blue")
+
+p1=ggplot() + geom_line(data=list.true[[1]], mapping=aes(x=th.true, y=truep0, col="P0")) + geom_line(data=list.true[[1]], mapping=aes(x=th.true, y=truep1, col="P1") ) + geom_line(data=list.true[[1]], mapping=aes(x=th.true, y=truep2, col="P2")) + geom_line(data=list.true[[1]], mapping=aes(x=th.true, y=truep3, col="P3")) + theme_classic() +scale_color_manual(values = legend_colors) +ylab(expression(paste("True", sep="  ", P(theta))))+xlab(expression(theta))+ annotate("text", -2, 0.9, label = " a==0.14", parse = TRUE, size=4) +ylim(0,1) +xlim(-3, 3.6)
+
+p2=ggplot() + geom_line(data=list.true[[2]], mapping=aes(x=th.true, y=truep0, col="P0")) + geom_line(data=list.true[[2]], mapping=aes(x=th.true, y=truep1, col="P1") ) + geom_line(data=list.true[[2]], mapping=aes(x=th.true, y=truep2, col="P2")) + theme_classic()  +scale_color_manual(values = legend_colors)+ylab(expression(paste("True", sep="  ", P(theta))))+xlab(expression(theta))+ annotate("text", -2, 0.9, label = " a==1", parse = TRUE, size=4)+ylim(0,1)+xlim(-3, 3.6)+ geom_line(data=list.true[[2]], mapping=aes(x=th.true, y=truep3, col="P3")) 
+
+p3=ggplot() + geom_line(data=list.true[[3]], mapping=aes(x=th.true, y=truep0, col="P0")) + geom_line(data=list.true[[3]], mapping=aes(x=th.true, y=truep1, col="P1") ) + geom_line(data=list.true[[3]], mapping=aes(x=th.true, y=truep2, col="P2")) + theme_classic()  +scale_color_manual(values = legend_colors)+ ylab(expression(paste("True", sep="  ", P(theta))))+xlab(expression(theta))+ annotate("text", -2, 0.9, label = " a==3", parse = TRUE, size=4)+ylim(0,1)+xlim(-3, 3.6)+ geom_line(data=list.true[[3]], mapping=aes(x=th.true, y=truep3, col="P3")) 
+
+p4=ggplot() + geom_line(data=list.est[[3]], mapping=aes(x=th, y=P.1, col="P0"))+ geom_line(data=list.est[[3]], mapping=aes(x=th, y=P.2, col="P1") ) + geom_line(data=list.est[[3]], mapping=aes(x=th, y=P.3, col="P2")) + theme_classic()  +scale_color_manual(values = legend_colors)+ylab(expression(paste("Estimated", sep="  ", P(theta))))+xlab(expression(theta))+ annotate("text", -1.9, 0.9, label = " a==0.14", parse = TRUE, size=4)+ylim(0,1)+xlim(-3, 3.6)+ geom_line(data=list.est[[4]], mapping=aes(x=th, y=P.4, col="P3"))
+
+p5=ggplot() + geom_line(data=list.est[[42]], mapping=aes(x=th, y=P.1, col="P0")) + geom_line(data=list.est[[42]], mapping=aes(x=th, y=P.2, col="P1") ) + geom_line(data=list.est[[42]], mapping=aes(x=th, y=P.3, col="P2")) + theme_classic() +scale_color_manual(values = legend_colors)+ylab(expression(paste("Estimated", sep="  ", P(theta))))+xlab(expression(theta))+ annotate("text", -2, 0.9, label = " a==1", parse = TRUE, size=4)+ylim(0,1)+xlim(-3, 3.6)+ geom_line(data=list.est[[42]], mapping=aes(x=th, y=P.4, col="P3"))
+
+p6=ggplot() + geom_line(data=list.est[[100]], mapping=aes(x=th, y=P.1, col="P0")) + geom_line(data=list.est[[100]], mapping=aes(x=th, y=P.2, col="P1") ) + geom_line(data=list.est[[100]], mapping=aes(x=th, y=P.3, col="P2")) + theme_classic()  +scale_color_manual(values = legend_colors)+ylab(expression(paste("Estimated", sep="  ", P(theta))))+xlab(expression(theta)) + annotate("text", -2, 0.9, label = " a==3", parse = TRUE, size=4)+ylim(0,1)+xlim(-3, 3.6)+ geom_line(data=list.est[[100]], mapping=aes(x=th, y=P.4, col="P3")) 
+
+myplot=ggarrange(p1, p2, p3, p4, p5, p6, ncol=3, nrow=3,  common.legend = TRUE, legend="top"); myplot
+```
+
+```{r}
+resp<-resp_th(ordered.grm.const)
+list.est=est.fun.nom(resp[,-1])
+```
+
+```{r}
+i=3
+p1=ggplot() + geom_line(data=list.est[[i]], mapping=aes(x=th, y=P.1, col="P0")) + geom_line(data=list.est[[i]], mapping=aes(x=th, y=P.2, col="P1") ) + geom_line(data=list.est[[i]], mapping=aes(x=th, y=P.3, col="P2")) + geom_line(data=list.est[[i]], mapping=aes(x=th, y=P.4, col="P3")) + theme_classic() +scale_color_manual(values = legend_colors) +ylab(expression(paste("Estimated", sep="  ", P(theta))))+xlab(expression(theta))+ annotate("text", -1.9, 0.9, label = " b[2]==0.14", parse = TRUE, size=4) +ylim(0,1) +xlim(-3, 3.6)
+i=64
+p2=ggplot() + geom_line(data=list.est[[i]], mapping=aes(x=th, y=P.1, col="P0")) + geom_line(data=list.est[[i]], mapping=aes(x=th, y=P.2, col="P1") ) + geom_line(data=list.est[[i]], mapping=aes(x=th, y=P.3, col="P2")) + geom_line(data=list.est[[i]], mapping=aes(x=th, y=P.4, col="P3")) + theme_classic() +scale_color_manual(values = legend_colors) +ylab(expression(paste("Estimated", sep="  ", P(theta))))+xlab(expression(theta))+ annotate("text", -2, 0.9, label = " b[2]==2", parse = TRUE, size=4) +ylim(0,1) +xlim(-3, 3.6)
+i=100
+p3=ggplot() + geom_line(data=list.est[[i]], mapping=aes(x=th, y=P.1, col="P0")) + geom_line(data=list.est[[i]], mapping=aes(x=th, y=P.2, col="P1") ) + geom_line(data=list.est[[i]], mapping=aes(x=th, y=P.3, col="P2")) + geom_line(data=list.est[[i]], mapping=aes(x=th, y=P.4, col="P3")) + theme_classic() +scale_color_manual(values = legend_colors) +ylab(expression(paste("Estimated", sep="  ", P(theta))))+xlab(expression(theta))+ annotate("text", -2, 0.9, label = " b[2]==3", parse = TRUE, size=4) +ylim(0,1) +xlim(-3, 3.6)
+
+p4=ggplot() + geom_line(data=list.true[[4]], mapping=aes(x=th.true, y=truep0, col="P0")) + geom_line(data=list.true[[4]], mapping=aes(x=th.true, y=truep1, col="P1") ) + geom_line(data=list.true[[4]], mapping=aes(x=th.true, y=truep2, col="P2")) + theme_classic()  +scale_color_manual(values = legend_colors)+ylab(expression(paste("True", sep="  ", P(theta))))+xlab(expression(theta))+ annotate("text", -1.9, 0.9, label = " b[2]==0.14", parse = TRUE, size=4)+ylim(0,1)+xlim(-3, 3.6)+ geom_line(data=list.true[[4]], mapping=aes(x=th.true, y=truep3, col="P3")) 
+
+p5=ggplot() + geom_line(data=list.true[[5]], mapping=aes(x=th.true, y=truep0, col="P0")) + geom_line(data=list.true[[5]], mapping=aes(x=th.true, y=truep1, col="P1") ) + geom_line(data=list.true[[5]], mapping=aes(x=th.true, y=truep2, col="P2")) + theme_classic() +scale_color_manual(values = legend_colors)+ylab(expression(paste("True", sep="  ", P(theta))))+xlab(expression(theta))+ annotate("text", -2, 0.9, label = " b[2]==2", parse = TRUE, size=4)+ylim(0,1)+xlim(-3, 3.6)+ geom_line(data=list.true[[5]], mapping=aes(x=th.true, y=truep3, col="P3")) 
+
+p6=ggplot() + geom_line(data=list.true[[6]], mapping=aes(x=th.true, y=truep0, col="P0")) + geom_line(data=list.true[[6]], mapping=aes(x=th.true, y=truep1, col="P1") ) + geom_line(data=list.true[[6]], mapping=aes(x=th.true, y=truep2, col="P2")) + theme_classic()  +scale_color_manual(values = legend_colors)+ylab(expression(paste("True", sep="  ", P(theta))))+xlab(expression(theta)) + annotate("text", -2, 0.9, label = " b[2]==3", parse = TRUE, size=4)+ylim(0,1)+xlim(-3, 3.6)+ geom_line(data=list.true[[6]], mapping=aes(x=th.true, y=truep3, col="P3")) 
+
+myplot=ggarrange(p4, p5, p6, p1, p2, p3, ncol=3, nrow=3,  common.legend = TRUE, legend="top"); myplot
+```
+
+# End
+
+
+
+
+
+

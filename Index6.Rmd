@@ -1,0 +1,136 @@
+
+
+```{r}
+n_i=100
+th=sort(rnorm(1000))
+resp_th= function(list){
+  df=data.frame(th)
+  for (i in 1:length(list)){
+    df[[i+1]]<-list[[i]][, ncol(list[[i]])]
+  }
+  colnames(df)<-c("th", paste("Item", 1:(length(list)),sep='') )
+  df
+}
+
+a_i<-sort(c(runif(n_i-6, min=0.1, max=3), 0, 0.14, 0.5, 1, 1.5, 3) )
+bs<-data.frame(b1=0, b2=sort(c(runif(n_i-5, min=0.1, max=3), 0, 0.1, 1.4, 2, 3 )) )
+b_2<-bs[,2]
+bs.c<-data.frame(b1=0, b2=sort(c(runif(n_i-3, min=-3, max=3), -3, 0,3 )) ) 
+a=1
+all.a2.val<-data.frame(a1=0, a2=sort( c(runif(n_i-3, min=-3, max=3), -2, 1, 3 )), a3=2 )
+all.c2.val<-data.frame(c1=0, c2=sort(c( runif(n_i-3, min=-3, max=3), -2, 1, 3 )), c3=2 )
+```
+
+
+```{r}
+ordered.grm<-readRDS("C:/Users/Roza/Desktop/Order.12.15.23/Data/ordered.grm.Vary_b,a=1.RData")
+ordered.grm.a<-readRDS("C:/Users/Roza/Desktop/Order.12.15.23/Data/ordered.grm.Vary_a.RData")
+
+ordered.gpcm<-readRDS("C:/Users/Roza/Desktop/Order.12.15.23/Data/ordered.gpcm.Vary_b,a=1.RData")
+ordered.gpcm.a<-readRDS("C:/Users/Roza/Desktop/Order.12.15.23/Data/ordered.gpcm.Vary_a.RData")
+crossed.pcm<-readRDS("C:/Users/Roza/Desktop/Order.12.15.23/Data/crossed.pcm.RData")
+
+all.a2<-readRDS("C:/Users/Roza/Desktop/Order.12.15.23/Data/all.a2.RData")
+all.c2<-readRDS("C:/Users/Roza/Desktop/Order.12.15.23/Data/all.c2.RData")
+
+ordered.grm.const<-readRDS("C:/Users/Roza/Desktop/Order.12.15.23/Data/ordered.grm.const.RData")
+ordered.grm.a.const<-readRDS("C:/Users/Roza/Desktop/Order.12.15.23/Data/ordered.grm.a.const.RData")
+
+ordered.grm4b<-readRDS("C:/Users/Roza/Desktop/Order.12.15.23/Data/ordered.grm4b.RData")
+ordered.grm4a<-readRDS("C:/Users/Roza/Desktop/Order.12.15.23/Data/ordered.grm4a.RData")
+```
+
+
+```{r}
+est.fun.nom<-function(resp){
+  l2=list()
+  library(mirt)
+  m <- mirt(resp, 1, itemtype = "nominal") 
+  th<-fscores(m)
+  colnames(th)="th"
+  for (i in 1:ncol(resp)){
+    item<-extract.item(m, i)
+    pr<-probtrace(item, th)
+    id=1:nrow(resp)
+    df=list(cbind(id, th=th, pr, resp[i]))
+    l2[i]=df
+  }
+  l2
+}
+```
+
+
+```{r}
+ind6=function(list){
+  ind=data.frame()
+  resp=resp_th(list)[,-1]
+  list=est.fun.nom(resp)
+  for (i in 2:length(list)){
+    df=list[[i]]
+    th=df$th
+    sl1= mean(diff(df[,4]/df[,3])/diff(th))
+    sl2= mean(diff(df[,5]/df[,4])/diff(th))
+    sl3= mean(diff(df[,5]/df[,3])/diff(th))
+    d=c(atan(sl1), atan(sl2), atan(sl3))
+    if (d[1]>0 & d[2]>0 & d[3]>0) {
+      f=mean(as.numeric(d))
+    } else{ f=mean(d[which(d<0)] )}
+    ind=rbind(ind, f)
+  }
+  ind
+}
+```
+
+
+```{r}
+df1=ind6(ordered.grm.a)
+df2=ind6(ordered.grm)
+df3=ind6(ordered.gpcm.a)
+df4=ind6(ordered.gpcm)
+df5=ind6(crossed.pcm)
+df6=ind6(all.a2)
+df7=ind6(all.c2)
+```
+
+
+```{r}
+order6=function(list){
+  ind=data.frame()
+  resp=resp_th(list)[,-1]
+  list=est.fun.nom(resp)
+  for (i in 2:length(list)){
+    df=list[[i]]
+    th=df$th
+    sl1=mean(diff( df[,4]/df[,3])/diff(th))
+    sl2=mean(diff( df[,5]/df[,4])/diff(th))
+    sl3=mean(diff( df[,6]/df[,5])/diff(th))
+    sl4=mean(diff( df[,6]/df[,4])/diff(th))
+    sl5=mean(diff( df[,6]/df[,3])/diff(th))
+    sl6=mean(diff( df[,5]/df[,3])/diff(th))
+    d=c(atan(sl1), atan(sl2), atan(sl3), atan(sl4), atan(sl5), atan(sl6) )
+    if (d[1]>0 & d[2]>0 & d[3]>0 & d[4]>0 & d[5]>0 & d[6]>0) {
+      f=mean(as.numeric(d))
+    } else{ f=mean(d[which(d<0)] )}
+    ind=rbind(ind, f)
+  }
+  ind
+}
+
+df8=order6(ordered.grm.const)
+df9=order6(ordered.grm.a.const)
+df10=order6(ordered.grm4b)
+df11=order6(ordered.grm4a)
+```
+
+```{r}
+measure10=list(df1, df2, df3, df4, df5, df6, df7, df8, df9, df10, df11 )
+saveRDS(measure10, file="C:/Users/Roza/Desktop/Order.12.15.23/Data/measure10.RData")
+
+```
+
+
+
+
+
+
+
