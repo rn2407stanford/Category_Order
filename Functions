@@ -1,0 +1,112 @@
+est.fun.nom<-function(resp){
+  l2=list()
+  m <- mirt::mirt(resp, 1, itemtype = "nominal") # c(rep("graded", ncol(resp))))
+  th<-mirt::fscores(m)
+  colnames(th)="th"
+  for (i in 1:ncol(resp)){
+    item<-mirt::extract.item(m, i)
+    pr<-mirt::probtrace(item, th)
+    id=1:nrow(resp)
+    df=list(cbind(id, th=th, pr, resp[i]))
+    l2[i]=df
+  }
+  l2
+}
+index6<-function(resp){
+  ind=as.numeric()
+  list=est.fun.nom(resp)
+  for (i in 1:length(list)){
+    df1=list[[i]]
+    th=df1$th
+    df=df1[,-c(1, 2, length(df1))]
+    cols <- 1:ncol(df)
+    pairs <- t(combn(cols, 2))
+    results <- numeric()
+    for (i in 1:nrow(pairs)) {
+      col1 <- pairs[i, 2]
+      col2 <- pairs[i, 1]
+      value <- mean(diff(df[, col1] / df[, col2]) / diff(th), na.rm = TRUE)
+      results <- c(results, value)
+    }
+    d=atan(results)
+    if (all(d > 0)){
+      f=mean(as.numeric(d))
+    } else{ f=mean(d[which(d<=0)] )}
+    ind=rbind(ind, f)
+  }
+  ind
+}
+index5<-function(resp){
+  est.nrm<-mirt::mirt(resp, 1, itemtype="nominal")
+  par<-data.frame(mirt::coef(est.nrm, IRTpars=TRUE, simplify=TRUE))
+  ii=grep("^items.a", names(par))
+  itempar.est<-par[,ii]
+  d=list()
+  for (i in 1:(length(itempar.est)-1)){
+    d[i]<-data.frame(itempar.est[,(i+1)]-itempar.est[,i])
+  }
+  difference=data.frame(do.call("cbind", d))
+  f=list()
+  for (i in 1:nrow(difference)){
+      zz<-difference[i, ]
+      zz<-zz[!is.na(zz)]
+      if (all(zz > 0)){
+          f[i]=mean(as.numeric(zz))/3
+      }
+      else{ f[i]=mean(as.numeric(zz[which(zz<=0)]))/3}
+  }
+  ind5=do.call("rbind", f)
+  ind5
+}
+
+
+f<-function(tab) {
+    print(tab)
+    load(tab)
+    resp<-irw::long2resp(df)
+    resp$id<-NULL
+    f<-function(x) length(unique(x[!is.na(x)]))
+    nn<-sapply(resp,f)
+    resp<-resp[,nn>2]
+    ##
+    N<-nrow(resp)
+    if (N>10000) {
+        ii<-sample(1:nrow(resp),10000)
+        resp<-resp[ii,]
+    }
+    ##
+    i5<-index5(resp)
+    i6<-index6(resp)
+    cbind(i5,i6)
+}
+
+source("/home/bdomingu/Dropbox/projects/order/tabs.R")
+tabs<-sort(tabs)
+
+library(parallel)
+ii<-mclapply(tabs,f,mc.cores=10)
+names(ii)<-tabs[1:length(ii)]
+
+i5<-lapply(ii,function(x) x[,1])
+i6<-lapply(ii,function(x) x[,2])
+
+
+par(mgp=c(2,1,0))
+par(mar=c(3,17,1,1))
+##
+m<-sapply(i5,mean)
+m<-sort(m)
+plot(NULL, xlim = range(unlist(i5)), ylim = c(1, length(m)), yaxt = 'n', ylab = '', xlab = "i5")
+abline(v = 0, col = 'gray')
+for (i in 1:length(m)) {
+    nm<-names(m)[i]
+    z<-i5[[nm]]
+    points(z,rep(i,length(z)),pch=19,cex=.5)
+    mtext(side = 2, line = 0.2, at = i, nm, cex = .8, las = 2)
+    points(mean(z),i,col='red',cex=1,pch=19)
+}
+##
+par(mar=c(3,3,1,1))
+m5<-sapply(i5,mean)
+m6<-sapply(i6,mean)
+plot(m5,m6)
